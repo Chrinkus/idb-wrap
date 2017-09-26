@@ -3,46 +3,47 @@
  */
 
 const DB_STORE = 'testStore',
-      DB_NAME = 'mochaTest';
+      DB_NAME = 'mochaTest',
+      DB_SETUP_OBJ = {
+          name: DB_NAME,
+          version: 1,
+          upgrade(dbRef) {
+              console.log('upgrade fired');
+              dbRef.createObjectStore(DB_STORE);
+          }
+      };
 
 function deleteDB(dbName) {
     return new Promise((resolve, reject) => {
         const request = indexedDB.deleteDatabase(dbName);
 
         request.onerror = () => reject(request.errorCode);
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess = () => resolve(`${dbName} deleted`);
     })
     .catch(console.error);
 }
 
 describe('idb', function() {
     describe('#openDB', function() {
-        let db, result;
+        let db;
 
-        // set up DB
         before(async function() {
             db = idb();
-            result = await db.openDB({
-                name: DB_NAME,
-                version: 1,
-                upgrade(dbRef) {
-                    dbRef.createObjectStore(DB_STORE);
-                }
-            });
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
         });
 
-        // clean up DB
         after(async function() {
-            await deleteDB(DB_NAME);
+            db.connection.close();
+            await deleteDB(DB_NAME).then(console.log);
         });
 
         it('db contains expected object store', function() {
-            result.objectStoreNames.contains(DB_STORE)
+            db.connection.objectStoreNames.contains(DB_STORE)
                 .should.equal(true);
         });
 
         it('db is named', function() {
-            result.name.should.equal(DB_NAME);
+            db.connection.name.should.equal(DB_NAME);
         });
     });
 });

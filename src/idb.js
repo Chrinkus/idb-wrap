@@ -14,12 +14,15 @@ function idb() {
         })
         .then(dbRef => {
             db = dbRef;
-            return Promise.resolve(dbRef);
+            return Promise.resolve(`opened ${dbRef.name}`);
         })
         .catch(console.error);
     }
 
     return Object.freeze({
+        get connection() {
+            return db;
+        },
         openDB
     });
 }
