@@ -1,6 +1,7 @@
 # IndexedDB Promise Wrappers
+*Now with tests!*
 
-This is a practice library I'm writing to work with a bunch of new techniques and patterns. This should NOT be used by anyone for anything meant to be useful.
+This is a practice library I'm writing to explore a bunch of new APIs and patterns. This should NOT be used by anyone for anything meant to be useful.
 
 Developing tools and skills:
 1. IndexedDB API

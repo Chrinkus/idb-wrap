@@ -8,17 +8,22 @@ const DB_STORE = 'testStore',
           name: DB_NAME,
           version: 1,
           upgrade(dbRef) {
-              console.log('upgrade fired');
-              dbRef.createObjectStore(DB_STORE);
+              console.log('upgrade fired'); // status check
+
+              const store = dbRef.createObjectStore(DB_STORE,
+                      { keyPath: 'id' });
+
+              store.put({ 'id': 1, 'type':'boat', 'wheels': 0 });
+              store.put({ 'id': 2, 'type':'car', 'wheels': 4 });
+              store.put({ 'id': 3, 'type':'truck', 'wheels': 4 });
           }
       };
 
 describe('idb', function() {
     describe('#openDB', function() {
-        let db;
+        let db = idb();
 
         before(async function() {
-            db = idb();
             await db.openDB(DB_SETUP_OBJ).then(console.log);
         });
 
@@ -59,18 +64,7 @@ describe('idb', function() {
         let db = idb();
 
         before(async function() {
-            await db.openDB({
-                name: DB_NAME,
-                version: 1,
-                upgrade(dbRef) {
-                    const store = dbRef.createObjectStore(DB_STORE,
-                            { autoIncrement: true });
-
-                    store.put('boat');
-                    store.put('car');
-                    store.put('truck');
-                }
-            }).then(console.log);
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
         });
 
         after(async function() {
@@ -79,7 +73,7 @@ describe('idb', function() {
 
         it('retrieves the correct record from the db', async function() {
             const result = await db.getOne(DB_STORE, 1);
-            result.should.equal('boat');
+            result.type.should.equal('boat');
         });
     });
 
@@ -87,14 +81,7 @@ describe('idb', function() {
         let db = idb();
 
         before(async function() {
-            await db.openDB({
-                name: DB_NAME,
-                version: 1,
-                upgrade(dbRef) {
-                    const store = dbRef.createObjectStore(DB_STORE,
-                            { autoIncrement: true });
-                }
-            }).then(console.log);
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
         });
 
         after(async function() {
@@ -102,10 +89,58 @@ describe('idb', function() {
         });
 
         it('inserts a record into a db', async function() {
-            const record = 'plane';
+            const record = { 'id': 4, 'type': 'plane', 'wheels': 3 };
             await db.addOne(DB_STORE, record);
+            const result = await db.getOne(DB_STORE, 4);
+            result.should.deep.equal(record);
+        });
+    });
+
+    describe('#deleteSome', function() {
+        let db = idb();
+
+        beforeEach(async function() {
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
+        });
+
+        afterEach(async function() {
+            await db.deleteDB(db.connection).then(console.log);
+        });
+
+        it('deletes a record from the db', async function() {
+            await db.deleteSome(DB_STORE, 1);
             const result = await db.getOne(DB_STORE, 1);
-            result.should.equal(record);
+            expect(result).to.equal(undefined);
+        });
+
+        it('deletes a range of records from the db', async function() {
+            await db.deleteSome(DB_STORE, IDBKeyRange.upperBound(2));
+
+            const result1 = await db.getOne(DB_STORE, 1),
+                  result2 = await db.getOne(DB_STORE, 2),
+                  result3 = await db.getOne(DB_STORE, 3);
+
+            expect(result1).to.not.exist;
+            expect(result2).to.not.exist;
+            expect(result3).to.exist;
+        });
+    });
+
+    describe('#updateOne', function() {
+        let db = idb();
+
+        beforeEach(async function() {
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
+        });
+
+        afterEach(async function() {
+            await db.deleteDB(db.connection).then(console.log);
+        });
+
+        it('updates a record', async function() {
+            await db.updateOne(DB_STORE, 3, { type: 'semi', wheels: 18 });
+            const result = await db.getOne(DB_STORE, 3);
+            result.should.deep.equal({ id: 3, type: 'semi', wheels: 18 });
         });
     });
 });
