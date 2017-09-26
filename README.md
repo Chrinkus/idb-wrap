@@ -1,4 +1,4 @@
-#IndexedDB Promise Wrappers
+# IndexedDB Promise Wrappers
 
 This is a practice library I'm writing to practice a bunch of new techniques and patterns. This should NOT be used by anyone for anything meant to be useful.
 
