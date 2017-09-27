@@ -41,10 +41,10 @@ function idb() {
     }
 
     /* CRUD ops
-     * addOne
      * getOne
+     * addOne
+     * deleteSome
      * updateOne
-     * deleteOne
      */
 
     function getOne(store, key) {
@@ -71,12 +71,12 @@ function idb() {
         });
     }
 
+    function deleteSome(store, key) {
     /* The behaviour of the ObjectStore.delete() method is to take either
      * a key or a key range thus allowing the delete to remove a single or
      * many records from the store. To reflect this capability 'deleteSome'
      * has been chosen as the appropriate name for this function.
      */
-    function deleteSome(store, key) {
         return new Promise((resolve, reject) => {
             const request = db
                 .transaction(store, 'readwrite')
@@ -115,12 +115,50 @@ function idb() {
         });
     }
 
-    return Object.freeze({
-        // connection reference
-        get connection() {
-            return db;
-        },
+    /* Macro CRUD
+     * getAll
+     * updateAll
+     */
 
+    function getAll(store) {
+        return new Promise((resolve, reject) => {
+            const request = db
+                .transaction(store, 'readonly')
+                .objectStore(store)
+                .getAll();
+
+            request.onerror = () => reject(request.errorCode);
+            request.onsuccess = () => resolve(request.result);
+        });
+    }
+
+    function updateAll(store, fn) {
+        // fn is transforming function to update each record
+        return new Promise((resolve, reject) => {
+            const request = db
+                .transaction(store, 'readwrite')
+                .objectStore(store)
+                .openCursor();
+
+            request.onerror = () => reject(request.errorCode);
+            request.onsuccess = () => {
+                const cursor = request.result;
+
+                if (cursor) {
+                    const updatedRecord = fn(cursor.value),
+                          request = cursor.update(updatedRecord);
+
+                    request.onerror = () => reject(request.errorCode);
+
+                    cursor.continue();
+                } else {
+                    resolve(request.result);
+                }
+            };
+        });
+    }
+
+    return Object.freeze({
         // DB management
         openDB,
         deleteDB,
@@ -129,6 +167,15 @@ function idb() {
         getOne,
         addOne,
         deleteSome,
-        updateOne
+        updateOne,
+
+        // Macro CRUD
+        getAll,
+        updateAll,
+
+        // connection reference
+        get connection() {
+            return db;
+        }
     });
 }

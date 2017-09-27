@@ -2,20 +2,22 @@
  * idb.js also linked through HTML
  */
 
-const DB_STORE = 'testStore',
-      DB_NAME = 'mochaTest',
+const DB_NAME = 'mochaTest',
+      DB_STORE = 'testStore',
+      DB_OTHER = 'anotherStore',
+      DB_DATA = [
+          { id: 1, type:'boat', wheels: 0 },
+          { id: 2, type:'car', wheels: 4 },
+          { id: 3, type:'truck', wheels: 4 }
+      ],
       DB_SETUP_OBJ = {
           name: DB_NAME,
           version: 1,
           upgrade(dbRef) {
-              console.log('upgrade fired'); // status check
-
               const store = dbRef.createObjectStore(DB_STORE,
                       { keyPath: 'id' });
 
-              store.put({ 'id': 1, 'type':'boat', 'wheels': 0 });
-              store.put({ 'id': 2, 'type':'car', 'wheels': 4 });
-              store.put({ 'id': 3, 'type':'truck', 'wheels': 4 });
+              DB_DATA.forEach(obj => store.put(obj));
           }
       };
 
@@ -24,7 +26,7 @@ describe('idb', function() {
         let db = idb();
 
         before(async function() {
-            await db.openDB(DB_SETUP_OBJ).then(console.log);
+            await db.openDB(DB_SETUP_OBJ);
         });
 
         afterEach(function() {
@@ -32,7 +34,7 @@ describe('idb', function() {
         });
 
         after(async function() {
-            await db.deleteDB(db.connection).then(console.log);
+            await db.deleteDB(db.connection);
         });
 
         it('db has correct name', function() {
@@ -45,17 +47,15 @@ describe('idb', function() {
         });
 
         it('can add a new object store', async function() {
-            const NEW_STORE = 'anotherStore';
-
             await db.openDB({
                 name: DB_NAME,
                 version: 2,
                 upgrade(dbRef) {
-                    dbRef.createObjectStore(NEW_STORE);
+                    dbRef.createObjectStore(DB_OTHER);
                 }
-            }).then(console.log);
+            });
 
-            db.connection.objectStoreNames.contains(NEW_STORE)
+            db.connection.objectStoreNames.contains(DB_OTHER)
                 .should.equal(true);
         });
     });
@@ -64,11 +64,11 @@ describe('idb', function() {
         let db = idb();
 
         before(async function() {
-            await db.openDB(DB_SETUP_OBJ).then(console.log);
+            await db.openDB(DB_SETUP_OBJ);
         });
 
         after(async function() {
-            await db.deleteDB(db.connection).then(console.log);
+            await db.deleteDB(db.connection);
         });
 
         it('retrieves the correct record from the db', async function() {
@@ -81,15 +81,15 @@ describe('idb', function() {
         let db = idb();
 
         before(async function() {
-            await db.openDB(DB_SETUP_OBJ).then(console.log);
+            await db.openDB(DB_SETUP_OBJ);
         });
 
         after(async function() {
-            await db.deleteDB(db.connection).then(console.log);
+            await db.deleteDB(db.connection);
         });
 
         it('inserts a record into a db', async function() {
-            const record = { 'id': 4, 'type': 'plane', 'wheels': 3 };
+            const record = { id: 4, type: 'plane', wheels: 3 };
             await db.addOne(DB_STORE, record);
             const result = await db.getOne(DB_STORE, 4);
             result.should.deep.equal(record);
@@ -100,11 +100,11 @@ describe('idb', function() {
         let db = idb();
 
         beforeEach(async function() {
-            await db.openDB(DB_SETUP_OBJ).then(console.log);
+            await db.openDB(DB_SETUP_OBJ);
         });
 
         afterEach(async function() {
-            await db.deleteDB(db.connection).then(console.log);
+            await db.deleteDB(db.connection);
         });
 
         it('deletes a record from the db', async function() {
@@ -130,17 +130,63 @@ describe('idb', function() {
         let db = idb();
 
         beforeEach(async function() {
-            await db.openDB(DB_SETUP_OBJ).then(console.log);
+            await db.openDB(DB_SETUP_OBJ);
         });
 
         afterEach(async function() {
-            await db.deleteDB(db.connection).then(console.log);
+            await db.deleteDB(db.connection);
         });
 
         it('updates a record', async function() {
             await db.updateOne(DB_STORE, 3, { type: 'semi', wheels: 18 });
             const result = await db.getOne(DB_STORE, 3);
             result.should.deep.equal({ id: 3, type: 'semi', wheels: 18 });
+        });
+    });
+
+    describe('#getAll', function() {
+        let db = idb();
+
+        before(async function() {
+            await db.openDB(DB_SETUP_OBJ);
+        });
+
+        after(async function() {
+            await db.deleteDB(db.connection);
+        });
+
+        it('returns an array with data', async function() {
+            const result = await db.getAll(DB_STORE);
+
+            expect(Array.isArray(result)).to.be.true;
+            expect(result).to.have.lengthOf(DB_DATA.length);
+        });
+    });
+
+    describe('#updateAll', function() {
+        let db = idb();
+
+        before(async function() {
+            await db.openDB(DB_SETUP_OBJ).then(console.log);
+        });
+
+        after(async function() {
+            await db.deleteDB(db.connection).then(console.log);
+        });
+
+        it('updates all of the records in db', async function() {
+            await db.updateAll(DB_STORE, record => {
+                const updated = record;
+                updated.type += 'foo';
+                return updated;
+            });
+
+            const result = await db.getAll(DB_STORE);
+
+            result.forEach(record => {
+                const suffix = record.type.slice(-3);
+                expect(suffix).to.equal('foo');
+            });
         });
     });
 });
